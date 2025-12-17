@@ -1,11 +1,14 @@
 import torch
 
-def backpropagation_gradients_w_space(synthesis_net: torch.nn.Module,
-                                      classifier: torch.nn.Module,
-                                      preprocess: torch.nn.Module,
-                                      w_latents: torch.Tensor,
-                                      target_class=None,
-                                      device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+
+def backpropagation_gradients_w_space(
+    synthesis_net: torch.nn.Module,
+    classifier: torch.nn.Module,
+    preprocess: torch.nn.Module,
+    w_latents: torch.Tensor,
+    target_class=None,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     """
     Compute gradients of the classifier's output with respect to the input_tensor via backpropagation.
 
@@ -33,14 +36,16 @@ def backpropagation_gradients_w_space(synthesis_net: torch.nn.Module,
     img = (img.clamp(-1, 1) + 1) / 2  # necessary otherwise predicted as wrong class
 
     # ==== classifier output ====
-    if device.type == 'cuda':
+    if device.type == "cuda":
         img_clf = preprocess(img.squeeze(0)).unsqueeze(0).cuda()
     else:
         img_clf = preprocess(img.squeeze(0)).unsqueeze(0)
 
     # get logits from classifier, resnet18 do not include a softmax layer in their architecture. So the output of the model is already the logits.
     classifier_output = classifier(img_clf)
-    print(f"output range {classifier_output.min()}, {classifier_output.max()}")  # to check if it has softmax
+    print(
+        f"output range {classifier_output.min()}, {classifier_output.max()}"
+    )  # to check if it has softmax
     predict_class = classifier_output.argmax(dim=1, keepdim=True)
 
     # Select the output corresponding to target_class if specified, else use the output directly
@@ -57,7 +62,8 @@ def backpropagation_gradients_w_space(synthesis_net: torch.nn.Module,
     # Backward pass: compute gradients
     # Create a tensor of ones with the same shape as output for gradient computation
     grad_outputs = torch.ones_like(
-        target)  # effectively setting the initial gradient of the computational graph when backpropagation begins.
+        target
+    )  # effectively setting the initial gradient of the computational graph when backpropagation begins.
     target.backward(grad_outputs)  # backward pass
 
     # The gradients of input_tensor with respect to the model output are now stored in input_tensor.grad
@@ -108,12 +114,14 @@ def get_s_vectors(synthesis_net, w_latents, device):
     return s_vectors
 
 
-def backpropagation_gradients_s_space(synthesis_net: torch.nn.Module,
-                                      classifier: torch.nn.Module,
-                                      preprocess: torch.nn.Module,
-                                      w_latents: torch.Tensor,
-                                      target_class=None,
-                                      device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+def backpropagation_gradients_s_space(
+    synthesis_net: torch.nn.Module,
+    classifier: torch.nn.Module,
+    preprocess: torch.nn.Module,
+    w_latents: torch.Tensor,
+    target_class=None,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     """
     Compute gradients of the classifier's output with respect to the input_tensor via backpropagation.
 
@@ -142,7 +150,7 @@ def backpropagation_gradients_s_space(synthesis_net: torch.nn.Module,
     def hook_fn(module, input, output):
         output.requires_grad_(True)  # Ensure S vectors have gradients
         layer_name = module.name_module if hasattr(module, "name_module") else str(module)
-        s_gradients[layer_name] = {'values': output, 'grad': None}
+        s_gradients[layer_name] = {"values": output, "grad": None}
 
     # Register hooks for all affine layers in the synthesis network
     hooks = []
@@ -172,7 +180,7 @@ def backpropagation_gradients_s_space(synthesis_net: torch.nn.Module,
 
     # Extract gradients for each S layer (updated logic)
     for layer_name, data in s_gradients.items():
-        if data['values'].grad is None:
+        if data["values"].grad is None:
             raise RuntimeError(
                 f"Gradient for layer '{layer_name}' is None. "
                 f"Ensure that 'data['values']' has 'requires_grad=True' and "
@@ -180,7 +188,7 @@ def backpropagation_gradients_s_space(synthesis_net: torch.nn.Module,
             )
 
         # Safeguard: Ensure gradients exist before cloning
-        s_gradients[layer_name]['grad'] = data['values'].grad.clone()
+        s_gradients[layer_name]["grad"] = data["values"].grad.clone()
 
     # Remove hooks
     for hook in hooks:
@@ -190,14 +198,16 @@ def backpropagation_gradients_s_space(synthesis_net: torch.nn.Module,
     return s_gradients, classifier_output, img
 
 
-def smoothgrad_s_space(synthesis_net: torch.nn.Module,
-                       classifier: torch.nn.Module,
-                       preprocess: torch.nn.Module,
-                       w_latents: torch.Tensor,
-                       target_class=None,
-                       n_samples=10,
-                       noise_scale=0.15,
-                       device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+def smoothgrad_s_space(
+    synthesis_net: torch.nn.Module,
+    classifier: torch.nn.Module,
+    preprocess: torch.nn.Module,
+    w_latents: torch.Tensor,
+    target_class=None,
+    n_samples=10,
+    noise_scale=0.15,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     """
     Compute SmoothGrad for S-space representations.
 
@@ -218,38 +228,43 @@ def smoothgrad_s_space(synthesis_net: torch.nn.Module,
     """
     # Get the clean prediction first
     smoothed_s_gradients, classifier_output, synthesized_image = backpropagation_gradients_s_space(
-        synthesis_net, classifier, preprocess, w_latents, target_class, device)
+        synthesis_net, classifier, preprocess, w_latents, target_class, device
+    )
 
     # Initialize gradients accumulator dictionary
-    #smoothed_s_gradients = {}
+    # smoothed_s_gradients = {}
 
     # Generate n_samples noisy versions and compute gradients
-    for i in range(n_samples-1):
+    for i in range(n_samples - 1):
         # Add Gaussian noise to the input
         noise = torch.randn_like(w_latents) * noise_scale
         noisy_w_latents = w_latents + noise
 
         # Compute gradients for the noisy input
         s_gradients, _, _ = backpropagation_gradients_s_space(
-            synthesis_net, classifier, preprocess, noisy_w_latents, target_class, device)
+            synthesis_net, classifier, preprocess, noisy_w_latents, target_class, device
+        )
 
         # Accumulate gradients
         for layer_name, data in s_gradients.items():
-            smoothed_s_gradients[layer_name]['grad'] += data['grad']
+            smoothed_s_gradients[layer_name]["grad"] += data["grad"]
 
     # Average the gradients
     for layer_name in smoothed_s_gradients.keys():
-        smoothed_s_gradients[layer_name]['grad'] /= n_samples
+        smoothed_s_gradients[layer_name]["grad"] /= n_samples
 
     return smoothed_s_gradients, classifier_output, synthesized_image
 
-def backpropagation_gradients_s_space_yolo(synthesis_net: torch.nn.Module,
-                                      classifier: torch.nn.Module,
-                                      #preprocess: torch.nn.Module,
-                                      w_latents: torch.Tensor,
-                                      target_idx: int,
-                                      target_class: int,
-                                      device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+
+def backpropagation_gradients_s_space_yolo(
+    synthesis_net: torch.nn.Module,
+    classifier: torch.nn.Module,
+    # preprocess: torch.nn.Module,
+    w_latents: torch.Tensor,
+    target_idx: int,
+    target_class: int,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     """
     Compute gradients of the classifier's output with respect to the input_tensor via backpropagation.
 
@@ -278,7 +293,7 @@ def backpropagation_gradients_s_space_yolo(synthesis_net: torch.nn.Module,
     def hook_fn(module, input, output):
         output.requires_grad_(True)  # Ensure S vectors have gradients
         layer_name = module.name_module if hasattr(module, "name_module") else str(module)
-        s_gradients[layer_name] = {'values': output, 'grad': None}
+        s_gradients[layer_name] = {"values": output, "grad": None}
 
     # Register hooks for all affine layers in the synthesis network
     hooks = []
@@ -293,12 +308,12 @@ def backpropagation_gradients_s_space_yolo(synthesis_net: torch.nn.Module,
     img = (img.clamp(-1, 1) + 1) / 2  # Normalize to [0, 1]
 
     # Classifier preprocessing & prediction
-    #img_clf = preprocess(img.squeeze(0)).unsqueeze(0).to(device)
+    # img_clf = preprocess(img.squeeze(0)).unsqueeze(0).to(device)
     img_clf = img.squeeze(0).unsqueeze(0).to(device)
     classifier_output = classifier(img_clf)
     classifier_output = classifier_output[0].squeeze(0).T
     # Specify the target class for backpropagation
-    target_output = classifier_output[target_idx][4+target_class]
+    target_output = classifier_output[target_idx][4 + target_class]
 
     # Backpropagation to compute gradients
     grad_outputs = torch.ones_like(target_output)
@@ -306,7 +321,7 @@ def backpropagation_gradients_s_space_yolo(synthesis_net: torch.nn.Module,
 
     # Extract gradients for each S layer (updated logic)
     for layer_name, data in s_gradients.items():
-        if data['values'].grad is None:
+        if data["values"].grad is None:
             raise RuntimeError(
                 f"Gradient for layer '{layer_name}' is None. "
                 f"Ensure that 'data['values']' has 'requires_grad=True' and "
@@ -314,7 +329,7 @@ def backpropagation_gradients_s_space_yolo(synthesis_net: torch.nn.Module,
             )
 
         # Safeguard: Ensure gradients exist before cloning
-        s_gradients[layer_name]['grad'] = data['values'].grad.clone()
+        s_gradients[layer_name]["grad"] = data["values"].grad.clone()
 
     # Remove hooks
     for hook in hooks:
@@ -324,14 +339,16 @@ def backpropagation_gradients_s_space_yolo(synthesis_net: torch.nn.Module,
     return s_gradients, classifier_output, img
 
 
-def smoothgrad_s_space_yolo(synthesis_net: torch.nn.Module,
-                           classifier: torch.nn.Module,
-                           w_latents: torch.Tensor,
-                           target_idx: int,
-                           target_class: int,
-                           n_samples=10,
-                           noise_scale=0.15,
-                           device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+def smoothgrad_s_space_yolo(
+    synthesis_net: torch.nn.Module,
+    classifier: torch.nn.Module,
+    w_latents: torch.Tensor,
+    target_idx: int,
+    target_class: int,
+    n_samples=10,
+    noise_scale=0.15,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     """
     Compute SmoothGrad for S-space representations for YOLO.
 
@@ -351,31 +368,37 @@ def smoothgrad_s_space_yolo(synthesis_net: torch.nn.Module,
       synthesized_image: The generated image (from clean input).
     """
     # Get the clean prediction first
-    smoothed_s_gradients, classifier_output, synthesized_image = backpropagation_gradients_s_space_yolo(
-        synthesis_net, classifier, w_latents, target_idx, target_class, device)
+    smoothed_s_gradients, classifier_output, synthesized_image = (
+        backpropagation_gradients_s_space_yolo(
+            synthesis_net, classifier, w_latents, target_idx, target_class, device
+        )
+    )
 
     # Generate n_samples noisy versions and compute gradients
-    for i in range(n_samples-1):
+    for i in range(n_samples - 1):
         # Add Gaussian noise to the input
         noise = torch.randn_like(w_latents) * noise_scale
         noisy_w_latents = w_latents + noise
 
         # Compute gradients for the noisy input
         s_gradients, _, _ = backpropagation_gradients_s_space_yolo(
-            synthesis_net, classifier, noisy_w_latents, target_idx, target_class, device)
+            synthesis_net, classifier, noisy_w_latents, target_idx, target_class, device
+        )
 
         # Accumulate gradients
         for layer_name, data in s_gradients.items():
-            smoothed_s_gradients[layer_name]['grad'] += data['grad']
+            smoothed_s_gradients[layer_name]["grad"] += data["grad"]
 
     # Average the gradients
     for layer_name in smoothed_s_gradients.keys():
-        smoothed_s_gradients[layer_name]['grad'] /= n_samples
+        smoothed_s_gradients[layer_name]["grad"] /= n_samples
 
     return smoothed_s_gradients, classifier_output, synthesized_image
 
 
-def generate_image_with_s_latents(synthesis_net: torch.nn.Module, s_latents: dict, device=torch.device('cuda')):
+def generate_image_with_s_latents(
+    synthesis_net: torch.nn.Module, s_latents: dict, device=torch.device("cuda")
+):
     """
     Generate an image using pre-defined S-space latents.
 
@@ -394,7 +417,7 @@ def generate_image_with_s_latents(synthesis_net: torch.nn.Module, s_latents: dic
     def overwrite_s_latents(module, input, output):
         layer_name = module.name_module if hasattr(module, "name_module") else str(module)
         if layer_name in s_latents.keys():
-            return s_latents[layer_name]['values']
+            return s_latents[layer_name]["values"]
         return output
 
     # Register hooks on affine layers of the synthesis network
@@ -420,14 +443,17 @@ def generate_image_with_s_latents(synthesis_net: torch.nn.Module, s_latents: dic
 
     return img
 
-def integrated_gradients(synthesis_net: torch.nn.Module,
-                         classifier: torch.nn.Module,
-                         preprocess: torch.nn.Module,
-                         input_tensor: torch.Tensor,
-                         baseline=None,
-                         target_class=None,
-                         steps=50,
-                         device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+
+def integrated_gradients(
+    synthesis_net: torch.nn.Module,
+    classifier: torch.nn.Module,
+    preprocess: torch.nn.Module,
+    input_tensor: torch.Tensor,
+    baseline=None,
+    target_class=None,
+    steps=50,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     """
     Compute the Integrated Gradients for a given input tensor.
 
@@ -471,7 +497,7 @@ def integrated_gradients(synthesis_net: torch.nn.Module,
     synthesized_images = synthesis_net(scaled_inputs)  # Generate images
     synthesized_images = (synthesized_images.clamp(-1, 1) + 1) / 2  # Normalize image output
 
-    if device.type == 'cuda':
+    if device.type == "cuda":
         processed_images = preprocess(synthesized_images).cuda()
     else:
         processed_images = preprocess(synthesized_images)
@@ -485,9 +511,13 @@ def integrated_gradients(synthesis_net: torch.nn.Module,
         outputs = outputs.squeeze()
 
     # Backward pass: compute gradients of the outputs with respect to the interpolated inputs
-    grads = torch.autograd.grad(outputs, scaled_inputs,
-                                grad_outputs=torch.ones_like(outputs),
-                                create_graph=False, retain_graph=False)[0]
+    grads = torch.autograd.grad(
+        outputs,
+        scaled_inputs,
+        grad_outputs=torch.ones_like(outputs),
+        create_graph=False,
+        retain_graph=False,
+    )[0]
 
     # Approximate the integral using the trapezoidal rule:
     # Calculate the average gradients along the interpolation path;
@@ -504,18 +534,17 @@ def integrated_gradients(synthesis_net: torch.nn.Module,
     return integrated_grad
 
 
-def aggregate_gradients(gradients,
-                        option: str = 'mean'):
+def aggregate_gradients(gradients, option: str = "mean"):
     assert gradients.ndim == 3
     assert gradients.size(2) == 512
-    if option == 'l2':
+    if option == "l2":
         aggregated_gradients = torch.norm(gradients, dim=2)
-    elif option == 'l1':
+    elif option == "l1":
         aggregated_gradients = torch.abs(gradients).mean(dim=2)
-    elif option == 'mean':
+    elif option == "mean":
         aggregated_gradients = torch.mean(gradients, dim=2)
-    elif option == 'max':
+    elif option == "max":
         aggregated_gradients = torch.max(gradients, dim=2)[0]
-    elif option == 'sum':
+    elif option == "sum":
         aggregated_gradients = torch.sum(gradients, dim=2)
     return aggregated_gradients.squeeze().cpu().numpy()

@@ -1,13 +1,21 @@
 import os
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from local_models.classifiers.celeb_resnet_model import (AttributeClassifier, CelebADataset,
-                                                         EarlyStopping, TrainingHistory, multi_label_accuracy, evaluate)
-from local_models.classifiers.celeb_configs import dataset_path
 
-#%% ----------- Dataset --------------
+from local_models.classifiers.celeb_configs import dataset_path
+from local_models.classifiers.celeb_resnet_model import (
+    AttributeClassifier,
+    CelebADataset,
+    EarlyStopping,
+    TrainingHistory,
+    evaluate,
+    multi_label_accuracy,
+)
+
+# %% ----------- Dataset --------------
 # uncomment the following line to download the dataset
 """import kagglehub
 # Download latest version
@@ -16,7 +24,7 @@ print("Path to dataset files:", path)"""
 print(os.path.exists(dataset_path))
 print(os.getcwd())
 
-#%%  ----------- Config ------------
+# %%  ----------- Config ------------
 batch_size = 256
 num_epochs = 10
 num_classes = 40
@@ -24,19 +32,13 @@ lr = 1e-4
 patience = 5
 verbose = True
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-save_dir = os.path.join("local_models/classifiers","checkpoints")
+save_dir = os.path.join("local_models/classifiers", "checkpoints")
 os.makedirs(save_dir, exist_ok=True)
-save_path = os.path.join(save_dir, 'resnet_celeb_40_parallel.pth')
+save_path = os.path.join(save_dir, "resnet_celeb_40_parallel.pth")
 
-#%%  ----------- Data --------------
-train_dataset = CelebADataset(root=dataset_path,
-                              transform=None,  # use default
-                              split='train'
-                              )
-val_dataset = CelebADataset(root=dataset_path,
-                            transform=None,  # use default
-                            split='val'
-                            )
+# %%  ----------- Data --------------
+train_dataset = CelebADataset(root=dataset_path, transform=None, split="train")  # use default
+val_dataset = CelebADataset(root=dataset_path, transform=None, split="val")  # use default
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
 model = AttributeClassifier(num_classes=num_classes).to(device)
@@ -49,7 +51,7 @@ optimizer = optim.Adam(model.parameters(), lr=lr)
 early_stopping = EarlyStopping(patience=patience, verbose=verbose)
 history = TrainingHistory()
 
-#%%  ----------- Training ----------
+# %%  ----------- Training ----------
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -66,7 +68,7 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
-        #acc = multi_label_accuracy(outputs, labels)
+        # acc = multi_label_accuracy(outputs, labels)
         with torch.no_grad():
             probs = torch.sigmoid(outputs)
             acc = multi_label_accuracy(probs, labels)
@@ -74,8 +76,10 @@ for epoch in range(num_epochs):
         running_acc += acc.item()
 
         if verbose and i % 10 == 0:
-            print(f"Epoch [{epoch + 1}/{num_epochs}], Step [{i}], "
-                  f"Loss: {loss.item():.4f}, Acc: {acc.item():.4f}")
+            print(
+                f"Epoch [{epoch + 1}/{num_epochs}], Step [{i}], "
+                f"Loss: {loss.item():.4f}, Acc: {acc.item():.4f}"
+            )
 
     # compute average loss and accuracy
     train_loss = running_loss / len(train_loader)
@@ -100,7 +104,7 @@ for epoch in range(num_epochs):
         break
 
 history.plot()
-#%%
+# %%
 """
 Epoch [7/10], Step [560], Loss: 0.1080, Acc: 0.9543
 Epoch [7/10], Step [570], Loss: 0.1108, Acc: 0.9516

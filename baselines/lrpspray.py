@@ -1,4 +1,4 @@
-""" Reproduce Spectral Relevance Analysis (SpRAy) based on the description in paper
+"""Reproduce Spectral Relevance Analysis (SpRAy) based on the description in paper
  *Unmasking Clever Hans Predictors and Assessing What Machines Really Learn*
 #"""
 
@@ -18,6 +18,7 @@ from src_.utils import load_facial_classifier, load_generator
 from local_models.classifiers.celeb_resnet_model import CelebADataset
 from local_models.classifiers.celeb_configs import dataset_path
 
+
 # Step 1: Generate Relevance Maps using LRP
 def generate_relevance_maps(model, img_tensor, target_logit, composite_config):
     """
@@ -35,9 +36,9 @@ def generate_relevance_maps(model, img_tensor, target_logit, composite_config):
     # Configure the Canonizers and Composite for LRP
     canonizers = [SequentialMergeBatchNorm()]  # Merge BatchNorm with linear layers
     composite = EpsilonGammaBox(
-        low=composite_config.get('low', -3.0),
-        high=composite_config.get('high', 3.0),
-        canonizers=canonizers
+        low=composite_config.get("low", -3.0),
+        high=composite_config.get("high", 3.0),
+        canonizers=canonizers,
     )
     with Gradient(model=model, composite=composite) as attributor:
 
@@ -62,14 +63,15 @@ def preprocess_relevance_maps(relevance_maps, target_size=(32, 32)):
         Processed relevance maps as a 2D array where each map is flattened.
     """
     from skimage.transform import resize
+
     processed_maps = []
     for relevance_map in relevance_maps:
         # Reshape relevance map from (C, H, W) to (H, W, C)
         relevance_map = np.transpose(relevance_map, (1, 2, 0))
         # Normalize relevance map to [0, 1]
-        normalized_map = (
-                                 relevance_map - relevance_map.min()) / (
-                                     relevance_map.max() - relevance_map.min() + 1e-8)
+        normalized_map = (relevance_map - relevance_map.min()) / (
+            relevance_map.max() - relevance_map.min() + 1e-8
+        )
         # Resize relevance map to the target size
         resized_map = resize(normalized_map, target_size, anti_aliasing=True)
         # Flatten the resized map into a 1D array
@@ -89,7 +91,9 @@ def perform_spectral_clustering(processed_maps, num_clusters=5):
     Returns:
         Array of cluster labels for each relevance map.
     """
-    clustering = SpectralClustering(n_clusters=num_clusters, affinity='nearest_neighbors', random_state=42)
+    clustering = SpectralClustering(
+        n_clusters=num_clusters, affinity="nearest_neighbors", random_state=42
+    )
     labels = clustering.fit_predict(processed_maps)
     return labels
 
@@ -114,7 +118,7 @@ def visualize_clusters(processed_maps, labels, num_samples=1000):
         plt.scatter(
             reduced_maps[labels[:num_samples] == label, 0],
             reduced_maps[labels[:num_samples] == label, 1],
-            label=f'Cluster {label}'
+            label=f"Cluster {label}",
         )
     plt.legend()
     plt.title("t-SNE Clustering Visualization of Relevance Maps")
@@ -134,14 +138,12 @@ def save_cluster_info(image_ids, labels, output_file="cluster_info.csv"):
         None
     """
     # Combine image IDs and labels into a DataFrame
-    cluster_data = pd.DataFrame({
-        "Image_ID": image_ids,
-        "Cluster_Label": labels
-    })
+    cluster_data = pd.DataFrame({"Image_ID": image_ids, "Cluster_Label": labels})
 
     # Save the DataFrame to a CSV file
     cluster_data.to_csv(output_file, index=False)
     print(f"Cluster information saved to: {output_file}")
+
 
 # Main function that reproduces SpRAy pipeline
 def main(data_source):
@@ -162,33 +164,28 @@ def main(data_source):
             torch.manual_seed(torch_seed)
             # generate one random seed from z latent space
             z = torch.randn([1, generator.z_dim], device=device)
-            img_tensor =  generator(z, c=None, truncation_psi=1, noise_mode='const')
+            img_tensor = generator(z, c=None, truncation_psi=1, noise_mode="const")
             img_tensor = (img_tensor.clamp(-1, 1) + 1) / 2
             if img_tensor.dim() == 3:
                 img_tensor = img_tensor.unsqueeze(0)
             if sut(img_tensor).squeeze()[15] > 0:
-                relevance_np = generate_relevance_maps(sut, img_tensor,
-                                                       target_logit=15,
-                                                       composite_config={"low": -3.0, "high": 3.0}
-                                                       )
+                relevance_np = generate_relevance_maps(
+                    sut, img_tensor, target_logit=15, composite_config={"low": -3.0, "high": 3.0}
+                )
                 relevance_maps.append(relevance_np)
                 image_ids.append(torch_seed)
     elif data_source == "dataset":
 
-        dataset = CelebADataset(root=dataset_path,
-                              transform=None,  # use default
-                              split='test'
-                              )
-        for id, (img_tensor, _ )in enumerate(dataset):
+        dataset = CelebADataset(root=dataset_path, transform=None, split="test")  # use default
+        for id, (img_tensor, _) in enumerate(dataset):
 
             img_tensor = img_tensor.to(device)
             if img_tensor.dim() == 3:
                 img_tensor = img_tensor.unsqueeze(0)
             if sut(img_tensor).squeeze()[15] > 0:
-                relevance_np = generate_relevance_maps(sut, img_tensor,
-                                                       target_logit=15,
-                                                       composite_config={"low": -3.0, "high": 3.0}
-                                                       )
+                relevance_np = generate_relevance_maps(
+                    sut, img_tensor, target_logit=15, composite_config={"low": -3.0, "high": 3.0}
+                )
                 relevance_maps.append(relevance_np)
                 image_ids.append(id)
     # Step 2: Preprocess relevance maps (normalization and downsizing)

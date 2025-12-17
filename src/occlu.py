@@ -1,14 +1,17 @@
 import torch
+
 from backpropagation import generate_image_with_s_latents
 
 
-def occlusions_s_space(synthesis_net: torch.nn.Module,
-                       classifier: torch.nn.Module,
-                       preprocess: torch.nn.Module,
-                       w_latents: torch.Tensor,
-                       target_class=None,
-                       epsilon=1e-6,
-                       device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+def occlusions_s_space(
+    synthesis_net: torch.nn.Module,
+    classifier: torch.nn.Module,
+    preprocess: torch.nn.Module,
+    w_latents: torch.Tensor,
+    target_class=None,
+    epsilon=1e-6,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     """
     Compute Layer-wise Relevance Propagation (LRP) relevance scores for StyleGAN S-space.
 
@@ -63,19 +66,23 @@ def occlusions_s_space(synthesis_net: torch.nn.Module,
     # Convert s_activations to s_latents format for generate_image_with_s_latents
     s_latents = {}
     for layer_name, activation in s_activations.items():
-        s_latents[layer_name] = {'values': activation}
+        s_latents[layer_name] = {"values": activation}
 
     # Compute relevance for each S-space layer using perturbation analysis
     for layer_name, s_activation in s_activations.items():
         layer_relevance = compute_layer_relevance_perturbation(
-            synthesis_net, s_latents, layer_name, classifier, preprocess,
-            target_class, target_output, epsilon, device
+            synthesis_net,
+            s_latents,
+            layer_name,
+            classifier,
+            preprocess,
+            target_class,
+            target_output,
+            epsilon,
+            device,
         )
 
-        s_relevance[layer_name] = {
-            'values': s_activation,
-            'relevance': layer_relevance
-        }
+        s_relevance[layer_name] = {"values": s_activation, "relevance": layer_relevance}
 
     return s_relevance, classifier_output, img
 
@@ -96,9 +103,17 @@ def _remove_hooks(hooks):
         hook.remove()
 
 
-def compute_layer_relevance_perturbation(synthesis_net, s_latents, target_layer_name,
-                                         classifier, preprocess, target_class,
-                                         original_output, epsilon, device):
+def compute_layer_relevance_perturbation(
+    synthesis_net,
+    s_latents,
+    target_layer_name,
+    classifier,
+    preprocess,
+    target_class,
+    original_output,
+    epsilon,
+    device,
+):
     """
     Compute layer relevance using small perturbations for each channel.
     """
@@ -106,7 +121,7 @@ def compute_layer_relevance_perturbation(synthesis_net, s_latents, target_layer_
     if target_layer_name not in s_latents:
         return 0.0
 
-    original_activation = s_latents[target_layer_name]['values']
+    original_activation = s_latents[target_layer_name]["values"]
     activation_shape = original_activation.shape
 
     # For each channel, compute relevance
@@ -117,8 +132,16 @@ def compute_layer_relevance_perturbation(synthesis_net, s_latents, target_layer_
         num_channels = activation_shape[1]
         for channel_idx in range(num_channels):
             relevance = compute_channel_relevance(
-                synthesis_net, s_latents, target_layer_name, channel_idx,
-                classifier, preprocess, target_class, original_output, epsilon, device
+                synthesis_net,
+                s_latents,
+                target_layer_name,
+                channel_idx,
+                classifier,
+                preprocess,
+                target_class,
+                original_output,
+                epsilon,
+                device,
             )
             channel_relevances.append(relevance)
     else:  # Multi-dimensional activation
@@ -129,18 +152,36 @@ def compute_layer_relevance_perturbation(synthesis_net, s_latents, target_layer_
 
         for channel_idx in range(total_elements):
             relevance = compute_channel_relevance(
-                synthesis_net, s_latents, target_layer_name, channel_idx,
-                classifier, preprocess, target_class, original_output, epsilon, device,
-                activation_shape
+                synthesis_net,
+                s_latents,
+                target_layer_name,
+                channel_idx,
+                classifier,
+                preprocess,
+                target_class,
+                original_output,
+                epsilon,
+                device,
+                activation_shape,
             )
             channel_relevances.append(relevance)
 
     return torch.tensor(channel_relevances, device=device)
 
 
-def compute_channel_relevance(synthesis_net, s_latents, target_layer_name, channel_idx,
-                              classifier, preprocess, target_class, original_output,
-                              epsilon, device, activation_shape=None):
+def compute_channel_relevance(
+    synthesis_net,
+    s_latents,
+    target_layer_name,
+    channel_idx,
+    classifier,
+    preprocess,
+    target_class,
+    original_output,
+    epsilon,
+    device,
+    activation_shape=None,
+):
     """
     Compute relevance for a specific channel by adding epsilon to that channel.
     """
@@ -149,7 +190,7 @@ def compute_channel_relevance(synthesis_net, s_latents, target_layer_name, chann
     for layer_name, data in s_latents.items():
         if layer_name == target_layer_name:
             # Create perturbed version of the target layer
-            perturbed_values = data['values'].clone()
+            perturbed_values = data["values"].clone()
 
             if activation_shape is None or len(perturbed_values.shape) == 2:
                 # Simple case: [batch, features]
@@ -160,10 +201,10 @@ def compute_channel_relevance(synthesis_net, s_latents, target_layer_name, chann
                 flat_values[:, channel_idx] += epsilon
                 perturbed_values = flat_values.view(perturbed_values.shape)
 
-            s_latents_perturbed[layer_name] = {'values': perturbed_values}
+            s_latents_perturbed[layer_name] = {"values": perturbed_values}
         else:
             # Keep original values for other layers
-            s_latents_perturbed[layer_name] = {'values': data['values']}
+            s_latents_perturbed[layer_name] = {"values": data["values"]}
 
     # Generate perturbed image using generate_image_with_s_latents
     with torch.no_grad():
@@ -176,7 +217,9 @@ def compute_channel_relevance(synthesis_net, s_latents, target_layer_name, chann
         if target_class is not None:
             target_output_perturbed = classifier_output_perturbed[:, target_class]
         else:
-            target_output_perturbed = classifier_output_perturbed[:, classifier_output_perturbed.argmax(dim=1)]
+            target_output_perturbed = classifier_output_perturbed[
+                :, classifier_output_perturbed.argmax(dim=1)
+            ]
 
     # Compute relevance as sensitivity to perturbation
     output_change = torch.abs(target_output_perturbed - original_output)
@@ -188,11 +231,16 @@ def compute_channel_relevance(synthesis_net, s_latents, target_layer_name, chann
 if __name__ == "__main__":
     import os
     import time
+
     start_time = time.time()
 
     os.chdir("..")
-    from configs import gan_facial_ckpt_path, sut_facial_path, preprocess_celeb_classifier
-    from utils import load_generator, load_facial_classifier
+    from configs import (
+        gan_facial_ckpt_path,
+        preprocess_celeb_classifier,
+        sut_facial_path,
+    )
+    from utils import load_facial_classifier, load_generator
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gan = load_generator(gan_facial_ckpt_path, device)
@@ -205,7 +253,7 @@ if __name__ == "__main__":
     w = gan.mapping(z, None)
     w = gan.mapping.w_avg + (w - gan.mapping.w_avg) * truncation_psi
 
-    img_tensor = gan.synthesis(w, noise_mode='const')
+    img_tensor = gan.synthesis(w, noise_mode="const")
     prediction = classifier(preprocess_celeb_classifier(img_tensor))[0, target_class]
     """s_relevance, classifier_output, img = occlusions_s_space(
         gan.synthesis, classifier, preprocess_celeb_classifier, w,
@@ -217,20 +265,26 @@ if __name__ == "__main__":
     # 500.70 seconds
 
     from backpropagation import backpropagation_gradients_s_space
+
     start_time = time.time()
     s_gradients, classifier_output, img = backpropagation_gradients_s_space(
-        gan.synthesis, classifier, preprocess_celeb_classifier, w,
-        target_class=15
+        gan.synthesis, classifier, preprocess_celeb_classifier, w, target_class=15
     )
     print(s_gradients)
     print("Execution time: {:.2f} seconds".format(time.time() - start_time))
     # Execution time: 0.88 seconds
 
     from backpropagation import smoothgrad_s_space
+
     start_time = time.time()
     s_smooth, classifier_output, img = smoothgrad_s_space(
-        gan.synthesis, classifier, preprocess_celeb_classifier, w,
-        target_class=15, n_samples=10, noise_scale=0.15
+        gan.synthesis,
+        classifier,
+        preprocess_celeb_classifier,
+        w,
+        target_class=15,
+        n_samples=10,
+        noise_scale=0.15,
     )
     print(s_smooth)
     print("Execution time: {:.2f} seconds".format(time.time() - start_time))

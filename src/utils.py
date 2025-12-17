@@ -1,17 +1,19 @@
-import torch
-import os
 import json
+import os
 from collections import OrderedDict
+
 import numpy as np
+import torch
 
 
 def tensor_to_ndarray(img_tensor):
-    if img_tensor.min()<-0.1:
+    if img_tensor.min() < -0.1:
         img_tensor = (img_tensor.clamp(-1, 1) + 1) / 2  # normalize to [0, 1] ss
 
     img = img_tensor.cpu().detach().numpy()[0]
     img = img.transpose(1, 2, 0)
     return img
+
 
 # Add a helper function to handle JSON serialization of numpy types
 def convert_to_serializable(obj):
@@ -33,7 +35,8 @@ def convert_to_serializable(obj):
 
     return obj  # Return the object unchanged if it doesn't match any special types
 
-def remove_prefix_from_state_dict(state_dict, prefix='module.'):
+
+def remove_prefix_from_state_dict(state_dict, prefix="module."):
     """
     Remove a prefix (e.g., 'module.') from all keys in a PyTorch state_dict.
 
@@ -47,7 +50,7 @@ def remove_prefix_from_state_dict(state_dict, prefix='module.'):
     new_state_dict = OrderedDict()
     for key, value in state_dict.items():
         if key.startswith(prefix):
-            new_key = key[len(prefix):]
+            new_key = key[len(prefix) :]
         else:
             new_key = key
         new_state_dict[new_key] = value
@@ -66,10 +69,13 @@ def remove_prefix_from_state_dict(state_dict, prefix='module.'):
     # save new file
     torch.save(clean_state_dict, output_path)"""
 
+
 def load_generator(gan_ckpt_path, device):
     from src._style_gan_legacy.legacy import load_network_pkl
-    with open(gan_ckpt_path, 'rb') as f:
-        return load_network_pkl(f)['G_ema'].to(device)
+
+    with open(gan_ckpt_path, "rb") as f:
+        return load_network_pkl(f)["G_ema"].to(device)
+
 
 def load_facial_classifier(ckpt_path, device):
     from local_models.classifiers.celeb_resnet_model import AttributeClassifier
@@ -81,6 +87,7 @@ def load_facial_classifier(ckpt_path, device):
     model.eval()
     return model
 
+
 def load_facial_large_classifier(ckpt_path, device):
     from local_models.classifiers.celeb_swag_model import SWAGCelebAClassifier
 
@@ -91,19 +98,24 @@ def load_facial_large_classifier(ckpt_path, device):
     model.eval()
     return model
 
+
 def load_animal_classifier(device):
     import torchvision.models as models
+
     return models.resnet18(pretrained=True).eval().to(device)
+
 
 def load_rexnet_dog_classifier(ckpt_path, device):
     import timm
-    model_name = 'rexnet_150'
+
+    model_name = "rexnet_150"
     num_classes = 78
     model = timm.create_model(model_name=model_name, num_classes=num_classes)
     model = model.to(device)
     model.load_state_dict(torch.load(ckpt_path))
     model.eval()
     return model
+
 
 def load_data(data_path, target_class_id, sample_id):
     """
@@ -118,25 +130,30 @@ def load_data(data_path, target_class_id, sample_id):
     """
 
     # Construct the path to the gradient file
-    gradient_path = os.path.join(data_path, str(target_class_id), str(sample_id), f'gradient_{sample_id}.pt')
-    
+    gradient_path = os.path.join(
+        data_path, str(target_class_id), str(sample_id), f"gradient_{sample_id}.pt"
+    )
+
     # Load the .pt file
     if not os.path.isfile(gradient_path):
         print(f"Warning: {gradient_path} not found, skipping.")
         gradient = None
-    else:    
+    else:
         gradient = torch.load(gradient_path, weights_only=True)
 
     # load predictions
-    metadata_path = os.path.join(data_path, str(target_class_id), str(sample_id), f'metadata_{sample_id}.json')
+    metadata_path = os.path.join(
+        data_path, str(target_class_id), str(sample_id), f"metadata_{sample_id}.json"
+    )
     if not os.path.isfile(metadata_path):
         print(f"Warning: {metadata_path} not found, skipping.")
         metadata = None
     else:
-        with open(metadata_path, 'r') as f:
+        with open(metadata_path, "r") as f:
             metadata = json.load(f)
 
     return gradient, metadata
+
 
 def get_adaptive_top_channels(layer_name):
     """
@@ -144,30 +161,22 @@ def get_adaptive_top_channels(layer_name):
     Common implementation across all manipulator types.
     """
     layer_strategies = {
-        'early_layers': {
-            'patterns': ['b4.', 'b8.', 'b16.'],
-            'top_channels': 15
-        },
-        'middle_layers': {
-            'patterns': ['b32.', 'b64.', 'b128.', 'b256.'],
-            'top_channels': 15
-        },
-        'late_layers': {
-            'patterns': ['b512.', 'b1024.'],
-            'top_channels': 5
-        }
+        "early_layers": {"patterns": ["b4.", "b8.", "b16."], "top_channels": 15},
+        "middle_layers": {"patterns": ["b32.", "b64.", "b128.", "b256."], "top_channels": 15},
+        "late_layers": {"patterns": ["b512.", "b1024."], "top_channels": 5},
     }
 
     for strategy_name, strategy in layer_strategies.items():
-        for pattern in strategy['patterns']:
+        for pattern in strategy["patterns"]:
             if pattern in layer_name:
-                return strategy['top_channels']
+                return strategy["top_channels"]
 
     if layer_name != "_":
         print(f"Layer {layer_name} using max top channels")
-    return max(strategy['top_channels'] for strategy in layer_strategies.values())
+    return max(strategy["top_channels"] for strategy in layer_strategies.values())
 
-def rank_gradient_info(s_latents, top = "adaptive", layer_name=None):
+
+def rank_gradient_info(s_latents, top="adaptive", layer_name=None):
     """
     Find and rank the indices of the gradients based on their absolute values.
 
@@ -188,10 +197,11 @@ def rank_gradient_info(s_latents, top = "adaptive", layer_name=None):
                       - 'ranked_indices': Ranked indices of gradients based on their absolute values.
                       - 'gradient_raw': Corresponding raw gradient values.
     """
+
     def process_gradients(layer_data, top=None):
-        if 'grad' not in layer_data:
-            raise ValueError(f"'grad' key missing in layer data.")
-        grad = layer_data['grad']
+        if "grad" not in layer_data:
+            raise ValueError("'grad' key missing in layer data.")
+        grad = layer_data["grad"]
         grad_abs = torch.abs(grad)  # Absolute values for ranking
         ranked_indices = torch.argsort(grad_abs, descending=True).squeeze().tolist()
         gradient_raw = grad.view(-1)[ranked_indices].tolist()
@@ -205,14 +215,14 @@ def rank_gradient_info(s_latents, top = "adaptive", layer_name=None):
 
         return ranked_indices, gradient_raw
 
-    if layer_name is None or layer_name == 'all':
+    if layer_name is None or layer_name == "all":
         # Handle the case for all layers
         gradient_info_by_layer = {}
         for ln, layer_data in s_latents.items():
             ranked_indices, gradient_raw = process_gradients(layer_data, top)
             gradient_info_by_layer[ln] = {
-                'ranked_indices': ranked_indices,
-                'gradients': gradient_raw
+                "ranked_indices": ranked_indices,
+                "gradients": gradient_raw,
             }
         return gradient_info_by_layer
 
@@ -221,7 +231,7 @@ def rank_gradient_info(s_latents, top = "adaptive", layer_name=None):
         if layer_name not in s_latents:
             raise ValueError(f"Layer name '{layer_name}' not found in s_latents.")
         ranked_indices, gradient_raw = process_gradients(s_latents[layer_name], top)
-        return {'ranked_indices': ranked_indices, 'gradients': gradient_raw}
+        return {"ranked_indices": ranked_indices, "gradients": gradient_raw}
 
     elif isinstance(layer_name, list):
         # Handle ranking for specified layers
@@ -231,8 +241,8 @@ def rank_gradient_info(s_latents, top = "adaptive", layer_name=None):
                 raise ValueError(f"Layer name '{layer}' not found in s_latents.")
             ranked_indices, gradient_raw = process_gradients(s_latents[layer], top)
             gradient_info_by_layer[layer] = {
-                'ranked_indices': ranked_indices,
-                'gradients': gradient_raw
+                "ranked_indices": ranked_indices,
+                "gradients": gradient_raw,
             }
         return gradient_info_by_layer
     else:
@@ -253,6 +263,7 @@ def perturbate_s_latents(s_latent, layer_name, index, extent=0.1):
         dict: Dictionary containing perturbed S-space latents for each layer.
     """
     from copy import deepcopy
+
     s_latent_perturbed = deepcopy(s_latent)
 
     # Ensure the layer exists in s_latent
@@ -260,18 +271,18 @@ def perturbate_s_latents(s_latent, layer_name, index, extent=0.1):
         raise ValueError(f"Layer '{layer_name}' not found in s_latent.")
 
     # Ensure the layer contains values
-    if 'values' not in s_latent[layer_name]:
+    if "values" not in s_latent[layer_name]:
         raise ValueError(f"'values' key missing in layer '{layer_name}'.")
 
     # Ensure the specified index is valid
-    if index >= s_latent[layer_name]['values'].numel():
+    if index >= s_latent[layer_name]["values"].numel():
         raise IndexError(f"Index {index} is out of range for the layer '{layer_name}'.")
 
     with torch.no_grad():
-        tensor = s_latent_perturbed[layer_name]['values']
+        tensor = s_latent_perturbed[layer_name]["values"]
         flat_tensor = tensor.view(-1)  # Flatten the tensor
         flat_tensor[index] = (flat_tensor[index] + extent).detach()  # Modify the specified index
-        s_latent_perturbed[layer_name]['values'] = flat_tensor.view(tensor.size())  # Reshape back
+        s_latent_perturbed[layer_name]["values"] = flat_tensor.view(tensor.size())  # Reshape back
 
     return s_latent_perturbed
 
@@ -280,33 +291,37 @@ def predict_yolo(model, img_tensor, device, target_class):
     def inverse_sigmoid(y, eps=1e-6):
         y = torch.clamp(y, eps, 1 - eps)  # avoid log(0)
         return torch.log(y / (1 - y))
+
     model.to(device).eval()
 
     prediction = model(img_tensor)[0].squeeze(0).T
-    class_probs = prediction[:, 4:]                   # shape: [5376, 79]
+    class_probs = prediction[:, 4:]  # shape: [5376, 79]
     confidences = class_probs.max(1).values  # shape: [5376]
 
     top_idx = int(confidences.argmax())
     top_class = int(class_probs[top_idx].argmax())
     boxes_xywh = prediction[top_idx, :4].cpu().detach().numpy()
 
-    top_confidence = prediction[top_idx, 4+top_class]
-    target_confidence = prediction[:, 4+target_class].max().cpu().detach().numpy()
+    top_confidence = prediction[top_idx, 4 + top_class]
+    target_confidence = prediction[:, 4 + target_class].max().cpu().detach().numpy()
 
     top_confidence_raw = inverse_sigmoid(torch.tensor(top_confidence)).cpu().detach().numpy()
     target_confidence_raw = inverse_sigmoid(torch.tensor(target_confidence)).cpu().detach().numpy()
 
     return top_idx, top_class, boxes_xywh, top_confidence_raw, target_confidence_raw, top_confidence
 
+
 if __name__ == "__main__":
     print("--------------------------------------------------------")
-    os.chdir('..')
-    sut_facial_lagre_path = os.path.join('local_models/classifiers','checkpoints','swag_celeb_40_parallel.pth')
-    input_path = sut_facial_lagre_path    #
-    output_path = sut_facial_lagre_path.replace('_parallel','_single')
+    os.chdir("..")
+    sut_facial_lagre_path = os.path.join(
+        "local_models/classifiers", "checkpoints", "swag_celeb_40_parallel.pth"
+    )
+    input_path = sut_facial_lagre_path  #
+    output_path = sut_facial_lagre_path.replace("_parallel", "_single")
 
     # load parallel model
-    state_dict = torch.load(input_path, map_location='cpu')
+    state_dict = torch.load(input_path, map_location="cpu")
 
     # remove 'module.' prefix
     clean_state_dict = remove_prefix_from_state_dict(state_dict)

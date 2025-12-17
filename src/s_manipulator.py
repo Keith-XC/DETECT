@@ -1,12 +1,11 @@
-import os
 from abc import ABC, abstractmethod
+
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from PIL import Image
-import numpy as np
-import json
-import matplotlib.pyplot as plt
 
-from src.backpropagation import (backpropagation_gradients_s_space, smoothgrad_s_space)
+from src.backpropagation import backpropagation_gradients_s_space, smoothgrad_s_space
 from src.occlusion import occlusions_s_space
 
 
@@ -18,7 +17,16 @@ class BaseManipulatorSSpace(ABC):
     to achieve desired changes in classifier predictions.
     """
 
-    def __init__(self, generator, classifier, segmenter, preprocess_fn, save_dir, confidence_drop_threshold, device=None):
+    def __init__(
+        self,
+        generator,
+        classifier,
+        segmenter,
+        preprocess_fn,
+        save_dir,
+        confidence_drop_threshold,
+        device=None,
+    ):
         """
         Initialize the base manipulator.
 
@@ -36,7 +44,11 @@ class BaseManipulatorSSpace(ABC):
         self.segmenter = segmenter
         self.save_dir = save_dir
         self.confidence_drop_threshold = confidence_drop_threshold
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
+        self.device = (
+            torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            if device is None
+            else device
+        )
 
     @abstractmethod
     def _get_target_value(self, prediction):
@@ -68,7 +80,6 @@ class BaseManipulatorSSpace(ABC):
 
     @abstractmethod
     def _get_confidence_drop(self, initial_confidence, adjusted_confidence):
-
         """
         Calculate the confidence drop between the original and perturbed predictions.
 
@@ -81,8 +92,15 @@ class BaseManipulatorSSpace(ABC):
         """
         pass
 
-    def plot_comparison(self, original_img, img_perturbed, prediction_delta, save_path,
-                        predicate_target, predicate_perturbed_target):
+    def plot_comparison(
+        self,
+        original_img,
+        img_perturbed,
+        prediction_delta,
+        save_path,
+        predicate_target,
+        predicate_perturbed_target,
+    ):
         """
         Plot comparison between original and perturbed images.
         Common implementation across all manipulator types.
@@ -135,7 +153,7 @@ class BaseManipulatorSSpace(ABC):
                 w_latents=w_latents,
                 target_class=self._get_target_class(),
                 epsilon=0.1,
-                device=self.device
+                device=self.device,
             )
         elif config == "smoothgrad":
             return smoothgrad_s_space(
@@ -146,7 +164,7 @@ class BaseManipulatorSSpace(ABC):
                 target_class=self._get_target_class(),
                 n_samples=10,
                 noise_scale=0.2,
-                device=self.device
+                device=self.device,
             )
 
     @abstractmethod

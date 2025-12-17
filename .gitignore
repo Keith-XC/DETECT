@@ -1,5 +1,6 @@
 .idea
 .venv
+
 *.csv
 *.pkl
 *.pth
@@ -16,3 +17,4 @@ __pycache__
 **/artifacts/
 **/wandb/
 **/results/
+*.env

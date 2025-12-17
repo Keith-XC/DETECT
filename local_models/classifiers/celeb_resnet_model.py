@@ -1,13 +1,13 @@
-import torch
-import torch.nn as nn
-from torchvision import models
 import os
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-import pandas as pd
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import models, transforms
 
 
 class AttributeClassifier(nn.Module):
@@ -20,12 +20,19 @@ class AttributeClassifier(nn.Module):
         self.backbone.fc = nn.Linear(in_features, num_classes)
 
     def forward(self, x):
-        #return torch.sigmoid(self.backbone(x))  # Multi-label output
+        # return torch.sigmoid(self.backbone(x))  # Multi-label output
         return self.backbone(x)  # Multi-label output
 
+
 class CelebADataset(Dataset):
-    def __init__(self, root, attr_path='list_attr_celeba.csv', image_dir='img_align_celeba/img_align_celeba',
-                 transform=None, split='train'):
+    def __init__(
+        self,
+        root,
+        attr_path="list_attr_celeba.csv",
+        image_dir="img_align_celeba/img_align_celeba",
+        transform=None,
+        split="train",
+    ):
         """
         Args:
             root (str): Path to the root CelebA directory
@@ -48,11 +55,11 @@ class CelebADataset(Dataset):
         self.attr_names = df.columns[1:].tolist()
 
         # Split the dataset (hardcoded indices from official CelebA split)
-        if split == 'train':
+        if split == "train":
             df = df.iloc[:162770]
-        elif split == 'val':
+        elif split == "val":
             df = df.iloc[162770:182637]
-        elif split == 'test':
+        elif split == "test":
             df = df.iloc[182637:]
         else:
             raise ValueError(f"Unknown split: {split}")
@@ -68,12 +75,13 @@ class CelebADataset(Dataset):
 
         # Default transform if none provided
         if self.transform is None:
-            self.transform = transforms.Compose([
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-            ])
+            self.transform = transforms.Compose(
+                [
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                ]
+            )
 
     def __len__(self):
         return len(self.samples)
@@ -81,9 +89,10 @@ class CelebADataset(Dataset):
     def __getitem__(self, idx):
         filename, label = self.samples[idx]
         image_path = os.path.join(self.image_dir, filename)
-        image = Image.open(image_path).convert('RGB')
+        image = Image.open(image_path).convert("RGB")
         image = self.transform(image)
         return image, label
+
 
 class EarlyStopping:
     def __init__(self, patience=7, min_delta=0, verbose=False):
@@ -102,7 +111,7 @@ class EarlyStopping:
         elif val_loss > self.best_loss + self.min_delta:
             self.counter += 1
             if self.verbose:
-                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+                print(f"EarlyStopping counter: {self.counter} out of {self.patience}")
             if self.counter >= self.patience:
                 self.early_stop = True
         else:
@@ -112,7 +121,9 @@ class EarlyStopping:
 
     def save_checkpoint(self, val_loss, model, path):
         if self.verbose:
-            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model ...')
+            print(
+                f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model ..."
+            )
         torch.save(model.state_dict(), path)
         self.val_loss_min = val_loss
 
@@ -130,29 +141,29 @@ class TrainingHistory:
         self.val_losses.append(val_loss)
         self.val_accs.append(val_acc)
 
-    def plot(self, save_dir='plots'):
+    def plot(self, save_dir="plots"):
         os.makedirs(save_dir, exist_ok=True)
 
         # Plot losses
         plt.figure(figsize=(10, 5))
-        plt.plot(self.train_losses, label='Training Loss')
-        plt.plot(self.val_losses, label='Validation Loss')
-        plt.title('Loss History')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
+        plt.plot(self.train_losses, label="Training Loss")
+        plt.plot(self.val_losses, label="Validation Loss")
+        plt.title("Loss History")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
         plt.legend()
-        plt.savefig(os.path.join(save_dir, 'loss_history.png'))
+        plt.savefig(os.path.join(save_dir, "loss_history.png"))
         plt.close()
 
         # Plot accuracies
         plt.figure(figsize=(10, 5))
-        plt.plot(self.train_accs, label='Training Accuracy')
-        plt.plot(self.val_accs, label='Validation Accuracy')
-        plt.title('Accuracy History')
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
+        plt.plot(self.train_accs, label="Training Accuracy")
+        plt.plot(self.val_accs, label="Validation Accuracy")
+        plt.title("Accuracy History")
+        plt.xlabel("Epoch")
+        plt.ylabel("Accuracy")
         plt.legend()
-        plt.savefig(os.path.join(save_dir, 'accuracy_history.png'))
+        plt.savefig(os.path.join(save_dir, "accuracy_history.png"))
         plt.close()
 
 
@@ -188,4 +199,3 @@ def evaluate(model, data_loader, criterion, device, target_logit=None):
                 total_acc += acc.item()
                 print(f"loss: {loss.item()}, acc: {acc.item()}")
     return total_loss / len(data_loader), total_acc / len(data_loader)
-

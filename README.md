@@ -22,11 +22,11 @@ Make sure to download and place the pretrained models (GANs, classifiers, and se
 
 ## 🧭 Tasks and Supported Models
 
-| Task   | Dataset  | Classifier          | GAN Generator    | Segmenter            |
-| ------ | -------- | ------------------- | ---------------- | -------------------- |
-| facial | CelebA   | ResNet50 / SWAG ViT | StyleGAN2 (FFHQ) | BiSeNet (optional)   |
-| dog    | LSUN Dog | ReXNet-150          | StyleGAN2 (Dog)  | SAM (optional)       |
-| yolo   | LSUN Car | YOLOv8n             | StyleGAN2 (Car)  | SegFormer (optional) |
+| Task   | Dataset  | Classifier          | GAN Generator    |
+| ------ | -------- | ------------------- | ---------------- |
+| facial | CelebA   | ResNet50 / SWAG ViT | StyleGAN2 (FFHQ) | 
+| dog    | LSUN Dog | ReXNet-150          | StyleGAN2 (Dog)  |
+| yolo   | LSUN Car | YOLOv8n             | StyleGAN2 (Car)  |
 
 ---
 

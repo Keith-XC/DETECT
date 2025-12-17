@@ -1,11 +1,22 @@
-import torch
-import torch.nn.functional as F
 import gc
 
+import torch
 
-def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, target_layer_name,
-                                                    classifier, preprocess, target_class,
-                                                    original_output, epsilon, device, chunk_size=32):
+# import torch.nn.functional as F
+
+
+def compute_layer_relevance_vectorized_perturbation(
+    synthesis_net,
+    w_latents,
+    target_layer_name,
+    classifier,
+    preprocess,
+    target_class,
+    original_output,
+    epsilon,
+    device,
+    chunk_size=32,
+):
     """
     Memory-efficient vectorized version - process perturbations in chunks to avoid OOM.
     """
@@ -18,7 +29,7 @@ def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, ta
 
     def capture_activation_hook(module, input, output):
         nonlocal original_activation
-        if hasattr(module, 'name_module') and module.name_module == target_layer_name:
+        if hasattr(module, "name_module") and module.name_module == target_layer_name:
             original_activation = output.detach().clone()
         return output
 
@@ -57,10 +68,16 @@ def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, ta
     # Determine optimal chunk size based on available memory
     if torch.cuda.is_available():
         # Get available GPU memory
-        free_memory = torch.cuda.get_device_properties(device).total_memory - torch.cuda.memory_allocated(device)
+        free_memory = torch.cuda.get_device_properties(
+            device
+        ).total_memory - torch.cuda.memory_allocated(device)
         # Estimate memory per sample (conservative estimate)
-        estimated_memory_per_sample = w_latents.numel() * w_latents.element_size() * 50  # Factor for intermediate activations
-        max_chunk_size = max(1, int(free_memory * 0.5 / estimated_memory_per_sample))  # Use 50% of available memory
+        estimated_memory_per_sample = (
+            w_latents.numel() * w_latents.element_size() * 50
+        )  # Factor for intermediate activations
+        max_chunk_size = max(
+            1, int(free_memory * 0.5 / estimated_memory_per_sample)
+        )  # Use 50% of available memory
         chunk_size = min(chunk_size, max_chunk_size, num_channels)
     else:
         chunk_size = min(chunk_size, num_channels)
@@ -81,7 +98,9 @@ def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, ta
         w_shape = w_latents.shape
         if len(w_shape) == 4:  # [batch, seq, layers, features]
             w_batch = w_latents.unsqueeze(0).expand(current_chunk_size, -1, -1, -1, -1).contiguous()
-            w_batch = w_batch.view(current_chunk_size * batch_size, w_shape[1], w_shape[2], w_shape[3])
+            w_batch = w_batch.view(
+                current_chunk_size * batch_size, w_shape[1], w_shape[2], w_shape[3]
+            )
         elif len(w_shape) == 3:  # [batch, seq, features]
             w_batch = w_latents.unsqueeze(0).expand(current_chunk_size, -1, -1, -1).contiguous()
             w_batch = w_batch.view(current_chunk_size * batch_size, w_shape[1], w_shape[2])
@@ -91,8 +110,8 @@ def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, ta
 
         # Vectorized perturbation hook for current chunk
         def vectorized_perturb_hook(module, input, output):
-            if hasattr(module, 'name_module') and module.name_module == target_layer_name:
-                output_shape = output.shape
+            if hasattr(module, "name_module") and module.name_module == target_layer_name:
+                # output_shape = output.shape
                 if len(activation_shape) == 2:
                     output_reshaped = output.view(current_chunk_size, batch_size, -1)
                     # Only perturb the relevant channels for this chunk
@@ -103,7 +122,9 @@ def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, ta
                             output_perturbed[i, :, channel_idx] += epsilon
                     return output_perturbed.view(current_chunk_size * batch_size, -1)
                 else:
-                    output_reshaped = output.view(current_chunk_size, batch_size, *activation_shape[1:])
+                    output_reshaped = output.view(
+                        current_chunk_size, batch_size, *activation_shape[1:]
+                    )
                     output_perturbed = output_reshaped.clone()
                     # Create perturbation mask for current chunk
                     flat_output = output_reshaped.view(current_chunk_size, batch_size, -1)
@@ -147,15 +168,18 @@ def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, ta
                     batch_outputs = torch.cat(batch_outputs, dim=0)  # [batch_size, num_classes]
                     classifier_outputs.append(batch_outputs)
 
-                classifier_outputs = torch.stack(classifier_outputs,
-                                                 dim=0)  # [current_chunk_size, batch_size, num_classes]
+                classifier_outputs = torch.stack(
+                    classifier_outputs, dim=0
+                )  # [current_chunk_size, batch_size, num_classes]
 
                 if target_class is not None:
-                    target_outputs = classifier_outputs[:, :, target_class]  # [current_chunk_size, batch_size]
+                    target_outputs = classifier_outputs[
+                        :, :, target_class
+                    ]  # [current_chunk_size, batch_size]
                 else:
-                    target_outputs = classifier_outputs.gather(2,
-                                                               classifier_outputs.argmax(dim=2, keepdim=True)).squeeze(
-                        2)
+                    target_outputs = classifier_outputs.gather(
+                        2, classifier_outputs.argmax(dim=2, keepdim=True)
+                    ).squeeze(2)
 
                 # Average over batch dimension if needed
                 if batch_size > 1:
@@ -195,9 +219,9 @@ def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, ta
                 if target_class is not None:
                     target_outputs = classifier_outputs[:, :, target_class]
                 else:
-                    target_outputs = classifier_outputs.gather(2,
-                                                               classifier_outputs.argmax(dim=2, keepdim=True)).squeeze(
-                        2)
+                    target_outputs = classifier_outputs.gather(
+                        2, classifier_outputs.argmax(dim=2, keepdim=True)
+                    ).squeeze(2)
 
                 if batch_size > 1:
                     target_outputs = target_outputs.mean(dim=1)
@@ -228,13 +252,15 @@ def compute_layer_relevance_vectorized_perturbation(synthesis_net, w_latents, ta
     return relevances
 
 
-def occlusions_s_space(synthesis_net: torch.nn.Module,
-                       classifier: torch.nn.Module,
-                       preprocess: torch.nn.Module,
-                       w_latents: torch.Tensor,
-                       target_class=None,
-                       epsilon=1e-6,
-                       device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+def occlusions_s_space(
+    synthesis_net: torch.nn.Module,
+    classifier: torch.nn.Module,
+    preprocess: torch.nn.Module,
+    w_latents: torch.Tensor,
+    target_class=None,
+    epsilon=1e-6,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+):
     """
     Compute Layer-wise Relevance Propagation (LRP) relevance scores for StyleGAN S-space.
 
@@ -297,13 +323,17 @@ def occlusions_s_space(synthesis_net: torch.nn.Module,
     # Compute relevance for each S-space layer using batch perturbation analysis
     for layer_name, s_activation in s_activations.items():
         layer_relevance = compute_layer_relevance_vectorized_perturbation(
-            synthesis_net, w_latents, layer_name, classifier, preprocess,
-            target_class, target_output, epsilon, device
+            synthesis_net,
+            w_latents,
+            layer_name,
+            classifier,
+            preprocess,
+            target_class,
+            target_output,
+            epsilon,
+            device,
         )
-        s_relevance[layer_name] = {
-            'values': s_activation,
-            'relevance': layer_relevance
-        }
+        s_relevance[layer_name] = {"values": s_activation, "relevance": layer_relevance}
 
     return s_relevance, classifier_output, img
 
@@ -315,8 +345,12 @@ if __name__ == "__main__":
     start_time = time.time()
 
     os.chdir("..")
-    from configs import gan_facial_ckpt_path, sut_facial_path, preprocess_celeb_classifier
-    from utils import load_generator, load_facial_classifier
+    from configs import (
+        gan_facial_ckpt_path,
+        preprocess_celeb_classifier,
+        sut_facial_path,
+    )
+    from utils import load_facial_classifier, load_generator
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gan = load_generator(gan_facial_ckpt_path, device)
@@ -328,11 +362,10 @@ if __name__ == "__main__":
     w = gan.mapping(z, None)
     w = gan.mapping.w_avg + (w - gan.mapping.w_avg) * truncation_psi
 
-    img_tensor = gan.synthesis(w, noise_mode='const')
+    img_tensor = gan.synthesis(w, noise_mode="const")
     prediction = classifier(preprocess_celeb_classifier(img_tensor))[0, target_class]
     s_relevance, classifier_output, img = occlusions_s_space(
-        gan.synthesis, classifier, preprocess_celeb_classifier, w,
-        target_class=15, epsilon=1e-6
+        gan.synthesis, classifier, preprocess_celeb_classifier, w, target_class=15, epsilon=1e-6
     )
     print(s_relevance)
     print(f"Execution time: {time.time() - start_time:.2f} seconds")

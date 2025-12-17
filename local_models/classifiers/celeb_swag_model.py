@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-from torchvision import transforms
 from PIL import Image
+from torchvision import transforms
+
 
 class SWAGCelebAClassifier(nn.Module):
     def __init__(self, num_classes=40, swag_model_name="vit_h14_in1k", freeze_backbone=True):
@@ -12,24 +13,28 @@ class SWAGCelebAClassifier(nn.Module):
 
         # Get the feature dimension from the backbone
         # For ViT local_models, we need to replace the head
-        if hasattr(self.backbone, 'head'):
+        if hasattr(self.backbone, "head"):
             head = self.backbone.head
             # Check if it's a standard Linear layer
-            if hasattr(head, 'in_features'):
+            if hasattr(head, "in_features"):
                 in_features = head.in_features
                 self.backbone.head = nn.Identity()
             # Check if it's a VisionTransformerHead or similar
-            elif hasattr(head, 'layers') and hasattr(head.layers, 'head') and hasattr(head.layers.head, 'in_features'):
+            elif (
+                hasattr(head, "layers")
+                and hasattr(head.layers, "head")
+                and hasattr(head.layers.head, "in_features")
+            ):
                 in_features = head.layers.head.in_features
 
                 # Replace the entire head with Identity
                 self.backbone.head = nn.Identity()
             # Check if it has a different structure
-            elif hasattr(head, 'weight'):
+            elif hasattr(head, "weight"):
                 in_features = head.weight.shape[1]
                 self.backbone.head = nn.Identity()
 
-        elif hasattr(self.backbone, 'fc'):
+        elif hasattr(self.backbone, "fc"):
             in_features = self.backbone.fc.in_features
             # Remove the original classification head
             self.backbone.fc = nn.Identity()
@@ -48,25 +53,24 @@ class SWAGCelebAClassifier(nn.Module):
             nn.Linear(in_features, 512),
             nn.ReLU(inplace=True),
             nn.Dropout(0.3),
-            nn.Linear(512, num_classes)
+            nn.Linear(512, num_classes),
         )
 
         # Resolution expected by SWAG model
         self.resolution = 518 if "h14" in swag_model_name else 224
 
         # Transform for preprocessing
-        self.transform = transforms.Compose([
-            transforms.Resize(
-                self.resolution,
-                interpolation=transforms.InterpolationMode.BICUBIC,
-            ),
-            transforms.CenterCrop(self.resolution),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            ),
-        ])
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize(
+                    self.resolution,
+                    interpolation=transforms.InterpolationMode.BICUBIC,
+                ),
+                transforms.CenterCrop(self.resolution),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
 
     def forward(self, x):
         # Extract features using SWAG backbone
@@ -103,22 +107,54 @@ class SWAGCelebAClassifier(nn.Module):
             predictions = (probabilities > threshold).float()
 
         return {
-            'logits': logits.squeeze().cpu().numpy(),
-            'probabilities': probabilities.squeeze().cpu().numpy(),
-            'predictions': predictions.squeeze().cpu().numpy()
+            "logits": logits.squeeze().cpu().numpy(),
+            "probabilities": probabilities.squeeze().cpu().numpy(),
+            "predictions": predictions.squeeze().cpu().numpy(),
         }
 
 
 # CelebA attribute names for reference
 CELEBA_ATTRIBUTES = [
-    "5_o_Clock_Shadow", "Arched_Eyebrows", "Attractive", "Bags_Under_Eyes",
-    "Bald", "Bangs", "Big_Lips", "Big_Nose", "Black_Hair", "Blond_Hair",
-    "Blurry", "Brown_Hair", "Bushy_Eyebrows", "Chubby", "Double_Chin",
-    "Eyeglasses", "Goatee", "Gray_Hair", "Heavy_Makeup", "High_Cheekbones",
-    "Male", "Mouth_Slightly_Open", "Mustache", "Narrow_Eyes", "No_Beard",
-    "Oval_Face", "Pale_Skin", "Pointy_Nose", "Receding_Hairline", "Rosy_Cheeks",
-    "Sideburns", "Smiling", "Straight_Hair", "Wavy_Hair", "Wearing_Earrings",
-    "Wearing_Hat", "Wearing_Lipstick", "Wearing_Necklace", "Wearing_Necktie", "Young"
+    "5_o_Clock_Shadow",
+    "Arched_Eyebrows",
+    "Attractive",
+    "Bags_Under_Eyes",
+    "Bald",
+    "Bangs",
+    "Big_Lips",
+    "Big_Nose",
+    "Black_Hair",
+    "Blond_Hair",
+    "Blurry",
+    "Brown_Hair",
+    "Bushy_Eyebrows",
+    "Chubby",
+    "Double_Chin",
+    "Eyeglasses",
+    "Goatee",
+    "Gray_Hair",
+    "Heavy_Makeup",
+    "High_Cheekbones",
+    "Male",
+    "Mouth_Slightly_Open",
+    "Mustache",
+    "Narrow_Eyes",
+    "No_Beard",
+    "Oval_Face",
+    "Pale_Skin",
+    "Pointy_Nose",
+    "Receding_Hairline",
+    "Rosy_Cheeks",
+    "Sideburns",
+    "Smiling",
+    "Straight_Hair",
+    "Wavy_Hair",
+    "Wearing_Earrings",
+    "Wearing_Hat",
+    "Wearing_Lipstick",
+    "Wearing_Necklace",
+    "Wearing_Necktie",
+    "Young",
 ]
 
 
@@ -134,9 +170,7 @@ def create_swag_celeba_model(model_name="vit_h14_in1k", freeze_backbone=True):
         SWAGCelebAClassifier instance
     """
     return SWAGCelebAClassifier(
-        num_classes=40,
-        swag_model_name=model_name,
-        freeze_backbone=freeze_backbone
+        num_classes=40, swag_model_name=model_name, freeze_backbone=freeze_backbone
     )
 
 
@@ -156,18 +190,24 @@ def test_model():
 
 if __name__ == "__main__":
     import os
+
     print(os.getcwd())
     import torch.optim as optim
-    from torch.utils.data import DataLoader
-    from celeb_resnet_model import (AttributeClassifier, CelebADataset,
-                                                             EarlyStopping, TrainingHistory, multi_label_accuracy, evaluate)
     from celeb_configs import dataset_path
-
+    from celeb_resnet_model import (
+        # AttributeClassifier,
+        CelebADataset,
+        EarlyStopping,
+        TrainingHistory,
+        evaluate,
+        multi_label_accuracy,
+    )
+    from torch.utils.data import DataLoader
 
     print(os.path.exists(dataset_path))
     print(os.getcwd())
 
-        #%%  ----------- Config ------------
+    # %%  ----------- Config ------------
     batch_size = 64
     num_epochs = 10
     num_classes = 40
@@ -175,25 +215,20 @@ if __name__ == "__main__":
     patience = 5
     verbose = True
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_dir = os.path.join("local_models/classifiers","checkpoints")
+    save_dir = os.path.join("local_models/classifiers", "checkpoints")
     os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, 'swag_celeb_40_parallel.pth')
+    save_path = os.path.join(save_dir, "swag_celeb_40_parallel.pth")
 
-    #%%  ----------- Data --------------
-    model = SWAGCelebAClassifier(num_classes=num_classes,
-                                 swag_model_name="vit_h14_in1k",
-                                 freeze_backbone=True).to(device)
+    # %%  ----------- Data --------------
+    model = SWAGCelebAClassifier(
+        num_classes=num_classes, swag_model_name="vit_h14_in1k", freeze_backbone=True
+    ).to(device)
 
-    train_dataset = CelebADataset(root=dataset_path,
-                                  transform=model.transform,
-                                  split='train'
-                                  )
-    val_dataset = CelebADataset(root=dataset_path,
-                                transform=model.transform,  # use default
-                                split='val'
-                                )
-    train_loader = DataLoader(train_dataset,
-                              batch_size=batch_size, shuffle=True, num_workers=4)
+    train_dataset = CelebADataset(root=dataset_path, transform=model.transform, split="train")
+    val_dataset = CelebADataset(
+        root=dataset_path, transform=model.transform, split="val"  # use default
+    )
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
 
     if torch.cuda.device_count() > 1:
@@ -205,7 +240,7 @@ if __name__ == "__main__":
     early_stopping = EarlyStopping(patience=patience, verbose=verbose)
     history = TrainingHistory()
 
-    #%%  ----------- Training ----------
+    # %%  ----------- Training ----------
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
@@ -222,7 +257,7 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
 
-            #acc = multi_label_accuracy(outputs, labels)
+            # acc = multi_label_accuracy(outputs, labels)
             with torch.no_grad():
                 probs = torch.sigmoid(outputs)
                 acc = multi_label_accuracy(probs, labels)
@@ -230,8 +265,10 @@ if __name__ == "__main__":
             running_acc += acc.item()
 
             if verbose and i % 10 == 0:
-                print(f"Epoch [{epoch + 1}/{num_epochs}], Step [{i}], "
-                      f"Loss: {loss.item():.4f}, Acc: {acc.item():.4f}")
+                print(
+                    f"Epoch [{epoch + 1}/{num_epochs}], Step [{i}], "
+                    f"Loss: {loss.item():.4f}, Acc: {acc.item():.4f}"
+                )
 
         # compute average loss and accuracy
         train_loss = running_loss / len(train_loader)
