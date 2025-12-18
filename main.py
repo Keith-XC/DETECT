@@ -2,7 +2,7 @@ import os
 import torch
 import gc
 import argparse
-from ultralytics import YOLO
+
 
 # Facial recognition imports
 from src.s_manipulator_binary import BinaryManipulatorSSpace as FacialManipulatorSSpace
@@ -127,6 +127,7 @@ def run_dog_classification(args):
 
 
 def run_yolo_detection(args):
+    from ultralytics import YOLO
     """Run YOLO object detection"""
     print("Running YOLO object detection...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

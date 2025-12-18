@@ -1,5 +1,5 @@
 
-# Testing Vision Models
+# DETECT: Feature-Aware Test Generation for Deep Learning Models
 
 This repository provides a unified pipeline for generating test cases in vision models using disentangled latent space manipulations based on pretrained StyleGAN generators.
 
@@ -11,10 +11,9 @@ All tasks are executed via a unified entry point in `main.py`, which supports di
 
 ## 🔧 Requirements
 
-* Python 3.8+
+* Python 3.9.19
 * PyTorch (CUDA supported)
-* [Ultralytics YOLOv8](https://docs.ultralytics.com/)
-* Other dependencies listed in `environment.yml`
+* Other dependencies listed in `requirements.txt`
 
 Make sure to download and place the pretrained models (GANs, classifiers, and segmentation models) at the paths defined in `configs.py`.
 
@@ -22,11 +21,11 @@ Make sure to download and place the pretrained models (GANs, classifiers, and se
 
 ## 🧭 Tasks and Supported Models
 
-| Task   | Dataset  | Classifier          | GAN Generator    |
-| ------ | -------- | ------------------- | ---------------- |
-| facial | CelebA   | ResNet50 / SWAG ViT | StyleGAN2 (FFHQ) | 
-| dog    | LSUN Dog | ReXNet-150          | StyleGAN2 (Dog)  |
-| yolo   | LSUN Car | YOLOv8n             | StyleGAN2 (Car)  |
+| Task   | Dataset  | Classifier          |
+| ------ | -------- | ------------------- |
+| facial | CelebA   | ResNet50 / SWAG ViT | 
+| dog    | LSUN Dog | ReXNet-150          | 
+| yolo   | LSUN Car | YOLOv8n             | 
 
 ---
 
@@ -35,14 +34,14 @@ Make sure to download and place the pretrained models (GANs, classifiers, and se
 Run the main script with the desired configuration:
 
 ```bash
-python main.py --task facial --model large --config smoothgrad --oracle confidence_drop
+python main.py --task facial --model small --config smoothgrad --oracle confidence_drop
 ```
 
 ### Common Arguments
 
 | Argument                 | Description                                                   |
 | ------------------------ | ------------------------------------------------------------- |
-| `--task`                 | Task to run: `facial`, `dog`, `yolo`                          |
+| `--task`                 | Task to run: `facial`, `dog` , `yolo`                         |
 | `--model`                | `small` or `large` model (only for facial task)               |
 | `--config`               | Attribution method: `gradient`, `smoothgrad`, `occlusion`     |
 | `--oracle`               | Oracle strategy: `confidence_drop`, `misclassification`       |
@@ -56,7 +55,7 @@ python main.py --task facial --model large --config smoothgrad --oracle confiden
 Example:
 
 ```bash
-python main.py --task dog --config smoothgrad --oracle misclassification --start_seed 10 --end_seed 50
+python main.py --task yolo --config smoothgrad --oracle misclassification --start_seed 10 --end_seed 50
 ```
 
 ---
@@ -85,7 +84,6 @@ Due to space limitations, we only include the **inference pipeline** in this rep
 
 * StyleGAN2 generators (with limited fine-tuning via ADA)
 * Classifiers (ResNet50, SWAG-ViT, ReXNet, YOLOv8)
-* Segmentation models
 
 We provide **trained or fine-tuned checkpoints upon request**. Please contact the authors or repository maintainers if you would like access to specific models.
 
