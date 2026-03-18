@@ -18,3 +18,4 @@ __pycache__
 **/wandb/
 **/results/
 *.env
+/stylegan2-ada-pytorch-main

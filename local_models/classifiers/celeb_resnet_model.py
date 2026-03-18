@@ -8,12 +8,12 @@ import torch.nn as nn
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import models, transforms
-
+from torchvision.models import ResNet50_Weights
 
 class AttributeClassifier(nn.Module):
     def __init__(self, num_classes=40, pretrained=True):
         super().__init__()
-        self.backbone = models.resnet50(pretrained=pretrained)
+        self.backbone = models.resnet50(pretrained=ResNet50_Weights.IMAGENET1K_V1 if pretrained else None)
 
         # Replace last FC layer for 40 attributes
         in_features = self.backbone.fc.in_features

@@ -10,18 +10,17 @@ generate_image_base_dir = "."
 segmentation_facial_ckpt_path = "local_models/segmentation/face_segmentation.pth"
 
 sut_facial_parallel_path = (
-    "/tmp/pycharm_project_181/local_models/classifiers/checkpoints/resnet_celeb_40_parallel.pth"
+    "local_models/classifiers/checkpoints/resnet_celeb_40_parallel.pth"
 )
 sut_facial_path = (
-    "/tmp/pycharm_project_181/local_models/classifiers/checkpoints/resnet_celeb_40_single.pth"
+    "local_models/classifiers/checkpoints/resnet_celeb_40_single.pth"
 )
 sut_facial_large_parallel_path = (
-    "/tmp/pycharm_project_181/local_models/classifiers/checkpoints/swag_celeb_40_parallel.pth"
+    "local_models/classifiers/checkpoints/swag_celeb_40_parallel.pth"
 )
 sut_facial_large_path = (
-    "/tmp/pycharm_project_181/local_models/classifiers/checkpoints/swag_celeb_40_single.pth"
+    "local_models/classifiers/checkpoints/swag_celeb_40_single.pth"
 )
-
 
 sut_dog_path = "local_models/classifiers/checkpoints/dogs_triplet_rexnet_150_best_model.pth"
 

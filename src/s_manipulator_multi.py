@@ -1,6 +1,6 @@
 import json
 import os
-
+from time import time
 import numpy as np
 import torch
 
@@ -457,7 +457,8 @@ class MulticlassManipulatorSSpace(BaseManipulatorSSpace):
             "gradient",
             "smoothgrad",
             "occlusion",
-        ], "config must be either 'gradient', 'smoothgrad', or 'occlusion'"
+            "random",
+        ], "config must be either 'gradient', 'smoothgrad', or 'occlusion' 'random'"
 
         # Set random seed for reproducibility
         torch.manual_seed(torch_seed)
@@ -507,9 +508,9 @@ class MulticlassManipulatorSSpace(BaseManipulatorSSpace):
             for layer_name, rank_data in ranked_gradient_info.items():
                 if "rgb" in layer_name and skip_rgb_layer:
                     continue
-
                 # Try each top channel
                 for top_n in range(len(rank_data["ranked_indices"])):
+                    start = time()
                     (
                         [confidence_drop, adjusted_confidence],
                         img_perturbed,
@@ -604,6 +605,7 @@ class MulticlassManipulatorSSpace(BaseManipulatorSSpace):
                                 "channel_id": rank_data["ranked_indices"][top_n],
                                 "gradient": rank_data["gradients"][top_n],
                                 "img_path": img_perturbed_path,
+                                "runtime": time() - start,
                                 # "significant_changes": seg_result[:8] if seg_result is not None else None
                             }
                         )

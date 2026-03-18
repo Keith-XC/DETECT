@@ -113,6 +113,31 @@ def get_s_vectors(synthesis_net, w_latents, device):
 
     return s_vectors
 
+def random_baseline_s_space(synthesis_net: torch.nn.Module,
+                            classifier: torch.nn.Module,
+                            preprocess: torch.nn.Module,
+                            w_latents: torch.Tensor,
+                            target_class=0,
+                            device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+    """
+    random baseline for S-space.
+    """
+    # ensure dictionary key and tensor shape is correct
+    s_gradients, classifier_output, synthesized_image = backpropagation_gradients_s_space(
+        synthesis_net, classifier, preprocess, w_latents, target_class, device
+    )
+
+    # replace the gradients with random noise
+    for layer_name in s_gradients.keys():
+        real_grad_shape = s_gradients[layer_name]['grad'].shape
+
+        random_grad = torch.randn(real_grad_shape,
+                                  device=s_gradients[layer_name]['grad'].device,
+                                  dtype=s_gradients[layer_name]['grad'].dtype)
+
+        s_gradients[layer_name]['grad'] = random_grad
+
+    return s_gradients, classifier_output, synthesized_image
 
 def backpropagation_gradients_s_space(
     synthesis_net: torch.nn.Module,

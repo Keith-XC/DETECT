@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from src.backpropagation import backpropagation_gradients_s_space, smoothgrad_s_space
+from src.backpropagation import backpropagation_gradients_s_space, smoothgrad_s_space, random_baseline_s_space
 from src.occlusion import occlusions_s_space
 
 
@@ -33,9 +33,9 @@ class BaseManipulatorSSpace(ABC):
         Args:
             generator: Pre-trained generator for image synthesis.
             classifier: Pre-trained classifier for evaluating confidence.
-            segmenter: Pre-trained segmentation model for image segmentation.
             preprocess_fn: Preprocessing function for classifier inputs.
             save_dir: Directory to save results.
+            segmenter: Pre-trained segmentation model for image segmentation.
             device: Torch device ('cuda' or 'cpu').
         """
         self.generator = generator
@@ -165,6 +165,15 @@ class BaseManipulatorSSpace(ABC):
                 n_samples=10,
                 noise_scale=0.2,
                 device=self.device,
+            )
+        elif config == "random":
+            return random_baseline_s_space(
+                synthesis_net=self.generator.synthesis,
+                classifier=self.classifier,
+                preprocess=self.preprocess_fn,
+                w_latents=w_latents,
+                target_class=self._get_target_class(),
+                device=self.device
             )
 
     @abstractmethod

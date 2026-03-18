@@ -1,6 +1,6 @@
 import json
 import os
-
+from time import time
 import numpy as np
 import torch
 
@@ -369,7 +369,9 @@ class ObjectDetectionManipulatorSSpace(BaseManipulatorSSpace):
         assert config in [
             "gradient",
             "smoothgrad",
-        ], "config must be either 'gradient' or 'smoothgrad'"
+            'random',
+            'occlusion',
+        ], "config must be either 'gradient' or 'smoothgrad' or 'random'"
 
         torch.manual_seed(torch_seed)
         # generate one random seed from z latent space
@@ -422,6 +424,7 @@ class ObjectDetectionManipulatorSSpace(BaseManipulatorSSpace):
                     continue
 
                 for top_n in range(len(rank_data["ranked_indices"])):
+                    start = time()
                     (
                         [confidence_drop, perturbed_confidence],
                         img_perturbed,
@@ -538,6 +541,7 @@ class ObjectDetectionManipulatorSSpace(BaseManipulatorSSpace):
                             "channel_id": rank_data["ranked_indices"][top_n],
                             "gradient": rank_data["gradients"][top_n],
                             "img_path": img_perturbed_path,
+                            "runtime": time() - start,
                             # "significant_changes": seg_result[:8] if seg_result is not None else None
                         }
 

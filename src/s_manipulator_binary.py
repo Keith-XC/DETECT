@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 import torch
-
+from time import time
 from src.backpropagation import generate_image_with_s_latents
 from src.s_manipulator import BaseManipulatorSSpace
 from src.utils import convert_to_serializable, perturbate_s_latents, rank_gradient_info
@@ -261,6 +261,7 @@ class BinaryManipulatorSSpace(BaseManipulatorSSpace):
             "gradient",
             "occlusion",
             "smoothgrad",
+            "random"
         ], "config must be either 'gradient', 'occlusion', or 'smoothgrad'"
 
         torch.manual_seed(torch_seed)
@@ -298,7 +299,7 @@ class BinaryManipulatorSSpace(BaseManipulatorSSpace):
         s_gradients, classifier_output, img_tensor = self.compute_gradients(config, w)
 
         # Rank gradient to get the most important channel of each layer
-        ranked_gradient_info = rank_gradient_info(s_gradients, top="adaptive", layer_name="all")
+        ranked_gradient_info = rank_gradient_info(s_gradients, top=10, layer_name="all")
 
         info = {
             "seed": torch_seed,
@@ -316,6 +317,7 @@ class BinaryManipulatorSSpace(BaseManipulatorSSpace):
                 # adaptive_top_channels = self.get_adaptive_top_channels(layer_name)
 
                 for top_n in range(len(rank_data["ranked_indices"])):
+                    start = time()
                     confidence_drop, img_perturbed, prediction_perturbed_target = (
                         self.compare_perturbed(
                             s_gradients,
@@ -415,9 +417,8 @@ class BinaryManipulatorSSpace(BaseManipulatorSSpace):
                                 "channel_id": rank_data["ranked_indices"][top_n],
                                 "gradient": rank_data["gradients"][top_n],
                                 "img_path": img_perturbed_path,
-                                "significant_changes": (
-                                    seg_result[:5] if seg_result is not None else None
-                                ),
+                                "runtime": time() - start,
+                                #"significant_changes": (seg_result[:5] if seg_result is not None else None),
                             }
                         )
 

@@ -2,8 +2,10 @@ import os
 import torch
 import gc
 import argparse
+import json
+from datetime import datetime
 
-
+print(torch.cuda.is_available())
 # Facial recognition imports
 from src.s_manipulator_binary import BinaryManipulatorSSpace as FacialManipulatorSSpace
 from src.utils import load_generator, load_facial_classifier, load_facial_large_classifier
@@ -30,8 +32,11 @@ from configs import (
     dog_rexnet_dict,
 )
 
+print(f"preprocess_celeb_classifier type: {type(preprocess_celeb_classifier)}")
+print(f"preprocess_celeb_large_classifier type: {type(preprocess_celeb_large_classifier)}")
 
-def run_facial_detection(args):
+
+def run_facial_detection(args, base_dir):
     """Run facial attribute detection"""
     print("Running facial attribute detection...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -48,12 +53,7 @@ def run_facial_detection(args):
         raise ValueError("Model must be 'small' or 'large' for facial detection")
 
     generator = load_generator(gan_facial_ckpt_path, device)
-    segmenter = None
 
-    base_dir = os.path.join(
-        generate_image_base_dir, "runs_", f"face_{args.model}_{args.config}_{args.oracle}"
-    )
-    os.makedirs(base_dir, exist_ok=True)
     data_path = os.path.join(
         base_dir, f"{args.target_logit}_{celeba_attributes_dict[args.target_logit]}"
     )
@@ -62,7 +62,7 @@ def run_facial_detection(args):
     manipulator = FacialManipulatorSSpace(
         generator=generator,
         classifier=classifier,
-        segmenter=segmenter,
+        segmenter=None,
         preprocess_fn=preprocess_fn,
         target_logit=args.target_logit,
         save_dir=data_path,
@@ -84,7 +84,7 @@ def run_facial_detection(args):
         gc.collect()
 
 
-def run_dog_classification(args):
+def run_dog_classification(args, base_dir):
     """Run dog breed classification"""
     print("Running dog breed classification...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -93,15 +93,11 @@ def run_dog_classification(args):
     # Load models
     generator = load_generator(gan_lsun_dog_ckpt_path, device)
     classifier = load_rexnet_dog_classifier(sut_dog_path, device)
-    segmenter = None
-
-    base_dir = os.path.join(generate_image_base_dir, "runs", f"dogs_{args.config}_{args.oracle}")
-    os.makedirs(base_dir, exist_ok=True)
 
     manipulator = DogManipulatorSSpace(
         generator=generator,
         classifier=classifier,
-        segmenter=segmenter,
+        segmenter=None,
         preprocess_fn=preprocess_celeb_classifier,
         save_dir="",
         class_dict=dog_rexnet_dict,
@@ -126,7 +122,7 @@ def run_dog_classification(args):
         gc.collect()
 
 
-def run_yolo_detection(args):
+def run_yolo_detection(args, base_dir):
     from ultralytics import YOLO
     """Run YOLO object detection"""
     print("Running YOLO object detection...")
@@ -137,15 +133,11 @@ def run_yolo_detection(args):
     generator = load_generator(gan_car_ckpt_path, device)
     yolo = YOLO("yolov8n.pt")
     yolo_model = yolo.model.to(device)
-    segmenter = None
-
-    base_dir = os.path.join(generate_image_base_dir, "runs", f"yolocar_{args.config}_{args.oracle}")
-    os.makedirs(base_dir, exist_ok=True)
 
     manipulator = YoloManipulatorSSpace(
         generator=generator,
         classifier=yolo_model,
-        segmenter=segmenter,
+        segmenter=None,
         save_dir=base_dir,
         class_dict=yolo.names,
         confidence_drop_threshold=args.confidence_threshold,
@@ -171,80 +163,40 @@ def main():
     )
 
     # Task selection
-    parser.add_argument(
-        "--task",
-        type=str,
-        required=True,
-        choices=["facial", "dog", "yolo"],
-        help="Task to run: facial, dog, or yolo",
-    )
-
+    parser.add_argument("--task", type=str, required=True, choices=["facial", "dog", "yolo"], help="Task to run: facial, dog, or yolo")
     # Model configuration
-    parser.add_argument(
-        "--model",
-        type=str,
-        default="large",
-        choices=["small", "large"],
-        help="Model size for facial detection (default: large)",
-    )
-
+    parser.add_argument("--model",type=str,default="large", choices=["small", "large"],help="Model size for facial detection (default: large)")
     # Processing configuration
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="smoothgrad",
-        choices=["gradient", "smoothgrad", "occlusion"],
-        help="Attribution method (default: smoothgrad)",
-    )
-
-    parser.add_argument(
-        "--oracle",
-        type=str,
-        default="confidence_drop",
-        choices=["confidence_drop", "misclassification"],
-        help="Oracle type (default: confidence_drop)",
-    )
-
-    # Parameters
-    parser.add_argument(
-        "--extent_factor", type=int, default=10, help="Extent factor (recommended: 10 - 20)"
-    )
-
-    parser.add_argument(
-        "--truncation_psi", type=float, default=0.7, help="Truncation psi value (default: 0.7)"
-    )
-
-    parser.add_argument(
-        "--confidence_threshold",
-        type=float,
-        default=0.4,
-        help="Confidence drop threshold (default: 0.4)",
-    )
-
-    parser.add_argument(
-        "--target_logit",
-        type=int,
-        default=15,
-        help="Target logit for facial detection (default: 15)",
-    )
-
+    parser.add_argument("--config", type=str, default="smoothgrad", choices=["gradient", "smoothgrad", "occlusion","random"], help="Attribution method (default: smoothgrad)")
+    parser.add_argument("--oracle", type=str, default="confidence_drop", choices=["confidence_drop", "misclassification"], help="Oracle type (default: confidence_drop)")
+    parser.add_argument("--extent_factor", type=int, default=10, help="Extent factor (recommended: 10 - 20)")
+    parser.add_argument("--truncation_psi", type=float, default=0.7, help="Truncation psi value (default: 0.7)")
+    parser.add_argument("--confidence_threshold",type=float,default=0.4,help="Confidence drop threshold (default: 0.4)")
+    parser.add_argument("--target_logit", type=int, default=15, help="Target logit for facial detection (default: 15)")
     # Seed range
-    parser.add_argument(
-        "--start_seed", type=int, default=0, help="Starting seed number (default: 0)"
-    )
+    parser.add_argument("--start_seed", type=int, default=0, help="Starting seed number (default: 0)")
+    parser.add_argument("--end_seed", type=int, default=100, help="Ending seed number (default: 100)")
 
-    parser.add_argument(
-        "--end_seed", type=int, default=100, help="Ending seed number (default: 100)"
-    )
+    debug_input = [
+        "--task", "facial",
+        "--model", "small",
+        "--config", "smoothgrad",# "gradient", "smoothgrad", "occlusion"
+        "--oracle", "confidence_drop", #"confidence_drop", "misclassification"
+        "--extent_factor", "10",
+        "--truncation_psi", "0.7",
+        "--target_logit", "15",
+        "--start_seed", "0",
+        "--end_seed", "10",
+    ]
 
-    args = parser.parse_args()
+    args = parser.parse_args() # debug_input
 
     # Auto-adjust extent_factor based on oracle if not explicitly set
     if args.extent_factor == 10 and args.oracle == "misclassification":
         args.extent_factor = 20
         print(f"Auto-adjusted extent_factor to {args.extent_factor} for misclassification oracle")
 
-    # Auto-adjust truncation_psi for YOLO if not explicitly set
+    """# Auto-adjust truncation_psi for YOLO if not explicitly set
     if args.task == "yolo" and args.truncation_psi == 0.7:
         args.truncation_psi = 0.5
         print(f"Auto-adjusted truncation_psi to {args.truncation_psi} for YOLO task")
@@ -258,7 +210,7 @@ def main():
             args.end_seed = 50
         print(
             f"Auto-adjusted seed range to [{args.start_seed}, {args.end_seed}) for {args.task} task"
-        )
+        )"""
 
     print(f"Running {args.task} task with configuration:")
     print(f"  Model: {args.model if args.task == 'facial' else 'N/A'}")
@@ -270,13 +222,28 @@ def main():
     print(f"  Target logit: {args.target_logit if args.task == 'facial' else 'N/A'}")
     print(f"  Seed range: [{args.start_seed}, {args.end_seed})")
 
+    timestamp = datetime.now().strftime("%m%d_%H%M")
+    save_base = os.path.join(
+        generate_image_base_dir, "runs_", f"{args.task}_{args.model}_{args.config}_{args.oracle}_{timestamp}"
+    )
+    os.makedirs(save_base, exist_ok=True)
+
     # Run the appropriate task
     if args.task == "facial":
-        run_facial_detection(args)
+        run_facial_detection(args, save_base)
     elif args.task == "dog":
-        run_dog_classification(args)
+        run_dog_classification(args, save_base)
     elif args.task == "yolo":
-        run_yolo_detection(args)
+        run_yolo_detection(args, save_base)
+
+    # Save config to JSON file
+    config_dict = vars(args)
+    config_path = os.path.join(save_base, 'config.json')
+
+    with open(config_path, 'w') as f:
+        json.dump(config_dict, f, indent=4)
+
+    print(f"Config saved to: {config_path}")
 
 
 if __name__ == "__main__":
