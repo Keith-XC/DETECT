@@ -4,13 +4,13 @@
 TASK="facial"          # : facial, dog, yolo
 MODEL="small"         # for facial model small:resnet   large:VIT
 START_SEED=0
-END_SEED=50           #
+END_SEED=10           #
 EXTENT=10
-CONFIDENCE_THRESHOLD=-10
+CONFIDENCE_THRESHOLD=0.2
 ORACLE="confidence_drop"
 
 # define all configs
-CONFIGS=("gradient" "smoothgrad" "random" "occlusion" ) # "gradient"  "occlusion" "smoothgrad"
+CONFIGS=("smoothgrad") # "random" "gradient" "smoothgrad" "occlusion"
 
 echo "Starting automated runs for task: $TASK"
 echo "------------------------------------------"

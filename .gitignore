@@ -4,13 +4,11 @@
 *.csv
 *.pkl
 *.pth
-**/_*.ipynb
 *.json*
 __pycache__
 
 **/_*/
 #**/*models/
-**/notebooks/
 **/runs/
 **/figures/
 **/*data*/

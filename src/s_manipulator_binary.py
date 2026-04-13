@@ -299,7 +299,7 @@ class BinaryManipulatorSSpace(BaseManipulatorSSpace):
         s_gradients, classifier_output, img_tensor = self.compute_gradients(config, w)
 
         # Rank gradient to get the most important channel of each layer
-        ranked_gradient_info = rank_gradient_info(s_gradients, top=10, layer_name="all")
+        ranked_gradient_info = rank_gradient_info(s_gradients, top="adaptive", layer_name="all")
 
         info = {
             "seed": torch_seed,
