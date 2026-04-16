@@ -1,20 +1,14 @@
-gan_facial_ckpt_path = "stylegan3/training-runs/00004-stylegan2-celeba-gpus1-batch16-gamma10/network-snapshot-000040.pkl"
-#gan_facial_ckpt_path ="local_models/generators/stylegan2-ffhq-1024x1024.pkl"
-#gan_imagenet_ckpt_path = "local_models/generators/imagenet128.pkl"
-#gan_afhq_ckpt_path = "local_models/generators/stylegan3-r-afhqv2-512x512.pkl"
-gan_lsun_dog_ckpt_path = "local_models/generators/stylegan2-lsundog-256x256.pkl"
-#gan_cat_ckpt_path = "local_models/generators/stylegan2-afhqcat-512x512.pkl"
-gan_car_ckpt_path = "local_models/generators/stylegan2-car-config-f.pkl"
+gan_facial_ckpt_path = "local_models/generators/stylegan2-ffhq-celeb.pkl"
+gan_lsun_dog_ckpt_path = "local_models/generators/stylegan2-dog.pkl"
+gan_car_ckpt_path = "local_models/generators/stylegan2-car.pkl"
 
 generate_image_base_dir = "."
 
-#segmentation_facial_ckpt_path = "local_models/segmentation/face_segmentation.pth"
-#sut_facial_parallel_path = ("local_models/classifiers/checkpoints/resnet_celeb_40_parallel.pth")
-sut_facial_path = ("local_models/classifiers/checkpoints/resnet_celeb_40_single.pth")
-# sut_facial_large_parallel_path = ("local_models/classifiers/checkpoints/swag_celeb_40_parallel.pth")
-sut_facial_large_path = ("local_models/classifiers/checkpoints/swag_celeb_40_single.pth")
-sut_dog_path = "local_models/classifiers/checkpoints/dogs_triplet_rexnet_150_best_model.pth"
 
+sut_facial_path = ("local_models/classifiers/checkpoints/resnet_celeb_40.pth")
+sut_facial_large_path = ("local_models/classifiers/checkpoints/swag_celeb_40.pth")
+sut_dog_path = "local_models/classifiers/checkpoints/rexnet_dog.pth"
+# yolo model is downloaded from ultralytics
 celeba_attributes = [
     "5_o_Clock_Shadow",
     "Arched_Eyebrows",

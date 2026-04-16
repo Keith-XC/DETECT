@@ -17,3 +17,5 @@ __pycache__
 **/results/
 *.env
 /stylegan2-ada-pytorch-main
+/stylegan3
+/stylegan2-ada-pytorch
