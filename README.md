@@ -78,22 +78,16 @@ Each folder contains:
 * Prediction logs
 * Perturbation metadata
 
-## 📦 Checkpoints and Training Code
+## 📦 Checkpoints
 
-Due to space limitations, we only include the **inference pipeline** in this repository. The code used to **train or fine-tune** the following models is available in a separate archive:
+Due to space limitations, we host our SUTs and finetuned generator checkpoints on Google Drive. 
+**[https://drive.google.com/drive/folders/1naXGbftzFZoioL32BAz2na5VoN2ea-mt?usp=drive_link]**
 
-* StyleGAN2 generators (with limited fine-tuning via ADA)
-* Classifiers (ResNet50, SWAG-ViT, ReXNet, YOLOv8)
-
-We provide **trained or fine-tuned checkpoints upon request**. Please contact the authors or repository maintainers if you would like access to specific models.
-
-## 🔍 Notes
-
----
+Please download the folders and merge them into the following local directories `./local_models/`
 
 ## 📝 Citation
 
-
+,
 
 ---
 
