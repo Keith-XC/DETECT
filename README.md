@@ -85,10 +85,25 @@ Due to space limitations, we host our SUTs and finetuned generator checkpoints o
 
 Please download the folders and merge them into the following local directories `./local_models/`
 
+> **Note:** These finetuned generators were trained using the [official StyleGAN2-ADA codebase](https://github.com/NVlabs/stylegan2-ada-pytorch) and pre-trained checkpoints. The fine-tuning process was conducted with the following hyperparameters:
+> ```bash
+> --snap=5 --aug=ada --target=0.7 --freezed=10 --batch=8 --gamma=1 --glr=0.0001 --dlr=0.0015 --kimg=100
+> ```
 ## 📝 Citation
 
-,
+A preprint of the paper can be found on [arXiv](https://arxiv.org/abs/2503.07222).
 
+If you use our work in your research, or it helps it, or if you simply like it, please cite it in your publications. 
+Here is an example BibTeX entry:
+
+```
+@article{chen2026feature,
+  title={Feature-Aware Test Generation for Deep Learning Models},
+  author={Chen, Xingcheng and Weissl, Oliver and Stocco, Andrea},
+  journal={arXiv preprint arXiv:2601.14081},
+  year={2026}
+}
+```
 ---
 
 
