@@ -91,7 +91,7 @@ Please download the folders and merge them into the following local directories 
 > ```
 ## 📝 Citation
 
-A preprint of the paper can be found on [arXiv](https://arxiv.org/abs/2503.07222).
+A preprint of the paper can be found on [arXiv](https://arxiv.org/abs/2601.14081).
 
 If you use our work in your research, or it helps it, or if you simply like it, please cite it in your publications. 
 Here is an example BibTeX entry:
