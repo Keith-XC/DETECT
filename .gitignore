@@ -7,7 +7,6 @@
 *.json*
 __pycache__
 
-**/_*/
 #**/*models/
 **/runs/
 **/figures/
